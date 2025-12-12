@@ -201,6 +201,7 @@ func toSkipDirSet(strs []string) map[string]bool {
 	for _, s := range strs {
 		expanded, err := homedir.Expand(s)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not expand skip_dirs entry '%s': %v\n", s, err)
 			continue
 		}
 		set[expanded] = true
