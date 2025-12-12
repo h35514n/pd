@@ -92,7 +92,7 @@ func configDir() string {
 func stateDir() string {
 	xdgDir := os.Getenv("XDG_STATE_HOME")
 	if xdgDir == "" {
-		xdgDir = os.ExpandEnv("$HOME/.state")
+		xdgDir = os.ExpandEnv("$HOME/.local/state")
 	}
 	dir := filepath.Join(xdgDir, "pd")
 	ensureDirExists(dir)
