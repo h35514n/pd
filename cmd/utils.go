@@ -29,38 +29,46 @@ import (
 
 func ensureDirExists(dir string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err = os.MkdirAll(dir, 0755)
-		check(err)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			check(err)
+		}
 	}
 }
 
-// Exists returns true if the given file or directory exists, else false.
+// exists returns true if the given file or directory exists, else false.
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil || !os.IsNotExist(err)
 }
 
-// Expand the given path to an absolute path
-// Expand placeholders like `.` and `~` to their canonical form.
-// Return the home directory if given the empty string.
+// expandPath expands the given path to an absolute path, resolving "~" and
+// environment variables. The empty string yields the user's home directory.
 func expandPath(path string) string {
-	path = filepath.Clean(strings.Trim(path, " "))
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return homeDir()
+	}
+
+	path = filepath.Clean(path)
+
 	expanded, err := homedir.Expand(path)
 	check(err)
+
 	abspath, err := filepath.Abs(expanded)
 	check(err)
+
 	return abspath
 }
 
-// Return the current user's home directory.
+// homeDir returns the current user's home directory.
 func homeDir() string {
 	home, err := homedir.Dir()
 	check(err)
 	return home
 }
 
-// Return the current user's current working directory.
-// If there's an error, return the home directory.
+// workingDir returns the current working directory, or the home directory on
+// error.
 func workingDir() string {
 	pwd, err := os.Getwd()
 	if err == nil {
@@ -69,71 +77,71 @@ func workingDir() string {
 	return homeDir()
 }
 
-// Return the current user's pd config directory
-// Create it if it doesn't already exist
+// configDir returns the pd config directory, creating it if necessary.
 func configDir() string {
 	xdgDir := os.Getenv("XDG_CONFIG_HOME")
 	if xdgDir == "" {
 		xdgDir = os.ExpandEnv("$HOME/.config")
 	}
-	configDir := filepath.Join(xdgDir, "pd")
-	ensureDirExists(configDir)
-	return configDir
+	dir := filepath.Join(xdgDir, "pd")
+	ensureDirExists(dir)
+	return dir
 }
 
-// Return the current user's pd state directory
-// Create it if it doesn't already exist
+// stateDir returns the pd state directory, creating it if necessary.
 func stateDir() string {
 	xdgDir := os.Getenv("XDG_STATE_HOME")
 	if xdgDir == "" {
-		xdgDir = os.ExpandEnv("$HOME/.state")
+		xdgDir = os.ExpandEnv("$HOME/.local/state")
 	}
-	stateDir := filepath.Join(xdgDir, "pd")
-	ensureDirExists(stateDir)
-	return stateDir
+	dir := filepath.Join(xdgDir, "pd")
+	ensureDirExists(dir)
+	return dir
 }
 
-// Return true if the given path is a project.
-// (i.e., a directory under version control or a Projectile project)
+// isProject returns true if path is considered a project directory.
 func isProject(path string) bool {
 	return isVersionControlled(path) || isProjectile(path)
 }
 
-// Return true if the given path is under version control.
-// Currently only supports Git.
+// isVersionControlled returns true if path is under version control (git).
 func isVersionControlled(path string) bool {
-	return exists(filepath.Join(path, ".git/"))
+	return exists(filepath.Join(path, ".git"))
 }
 
-// Return true if the given path is a projectile project.
+// isProjectile returns true if path is a Projectile project.
 func isProjectile(path string) bool {
 	return exists(filepath.Join(path, ".projectile"))
 }
 
-// if there's an error, print it out and exit with a failure exit code.
+// check prints an error and exits non-zero.
 func check(err error) {
 	if err != nil {
-		fmt.Println("[pd] Encountered an error: ")
+		fmt.Println("[pd] Encountered an error:")
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 }
 
-// if there's a problem reading the config file, exit
+// checkConfigFile terminates if the config file exists but cannot be read.
 func checkConfigFile(err error) {
 	if err == nil {
 		return
 	}
-	_, ok := err.(viper.ConfigFileNotFoundError)
-	if !ok {
-		// Config file was found but another error was produced
-		check(err)
+
+	_, notFound := err.(viper.ConfigFileNotFoundError)
+	if notFound {
+		return
 	}
+
+	check(err)
 }
 
-// List the contents of `path` using eza.
-func listFilesEza(path string, abbreviated string) (string, error) {
+// listFilesEza lists the contents of path using "eza", printing the abbreviated
+// path header (e.g. "~" for home).
+func listFilesEza(path, abbreviated string) (string, error) {
 	fmt.Println(abbreviated)
+
 	cmd := exec.Command(
 		"eza",
 		"--all",
@@ -142,11 +150,12 @@ func listFilesEza(path string, abbreviated string) (string, error) {
 		"-1",
 		path,
 	)
+
 	return capturedOutput(cmd)
 }
 
-// List the contents of `path` using ls.
-func listFilesLs(path string, abbreviated string) (string, error) {
+// listFilesLs lists the contents of path using "ls".
+func listFilesLs(path, _ string) (string, error) {
 	cmd := exec.Command(
 		"ls",
 		"--almost-all",
@@ -156,44 +165,46 @@ func listFilesLs(path string, abbreviated string) (string, error) {
 		"-1",
 		path,
 	)
+
 	return capturedOutput(cmd)
 }
 
-// List the contents of `path` using tree.
+// listFilesTree lists the contents of path using "tree".
 func listFilesTree(path string) (string, error) {
 	cmd := exec.Command(
 		"tree",
 		"-C",
-		"-L",
-		"2",
+		"-L", "2",
 		path,
 	)
+
 	return capturedOutput(cmd)
 }
 
-// Capture the output of command `cmd`, returning a string.
+// capturedOutput runs cmd and returns its stdout as a string.
 func capturedOutput(cmd *exec.Cmd) (string, error) {
 	var out bytes.Buffer
-	var output string
-
 	cmd.Stdout = &out
-	err := cmd.Run()
 
-	if err == nil {
-		output = out.String()
+	err := cmd.Run()
+	if err != nil {
+		return "", err
 	}
 
-	return output, err
+	return out.String(), nil
 }
 
+// toSkipDirSet converts a slice of directory patterns to an expanded set.
 func toSkipDirSet(strs []string) map[string]bool {
-	set := map[string]bool{}
+	set := make(map[string]bool, len(strs))
 
-	for _, str := range strs {
-		expanded, err := homedir.Expand(str)
-		if err == nil {
-			set[expanded] = true
+	for _, s := range strs {
+		expanded, err := homedir.Expand(s)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not expand skip_dirs entry '%s': %v\n", s, err)
+			continue
 		}
+		set[expanded] = true
 	}
 
 	return set
