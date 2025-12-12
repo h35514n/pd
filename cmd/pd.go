@@ -250,6 +250,9 @@ func currentlyLoggedProjects() map[string]LogEntry {
 		}
 	}
 
+	if err := scanner.Err(); err != nil {
+		check(err)
+	}
 	return entries
 }
 
