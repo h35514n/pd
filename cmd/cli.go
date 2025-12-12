@@ -77,10 +77,12 @@ Given no arguments, open FZF to allow fuzzy-selecting a directory to cd into.
 `
 
 var rootCmd = &cobra.Command{
-	Use:   "pd",
-	Short: "A project / directory manager and FZF-powered fuzzy-selector.",
+	Use:                "pd",
+	Short:              "A project / directory manager and FZF-powered fuzzy-selector.",
 	DisableFlagParsing: true,
-	Args: cobra.ArbitraryArgs,
+	SilenceErrors:      true,
+	SilenceUsage:       true,
+	Args:               cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		target := strings.TrimSpace(strings.Join(args, " "))
 
