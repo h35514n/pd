@@ -130,10 +130,10 @@ func Execute() {
 // global configuration (historyFile, skipDirs, debug).
 func initConfig() {
 	cfgDir := configDir()
-	stateDir := stateDir()
+	statePath := stateDir()
 
 	// Config defaults
-	viper.SetDefault(configKeyHistoryFile, filepath.Join(stateDir, defaultHistoryFilename))
+	viper.SetDefault(configKeyHistoryFile, filepath.Join(statePath, defaultHistoryFilename))
 	viper.SetDefault(configKeyDebug, false)
 	viper.SetDefault(configKeySkipDirs, []string{"~/Library/"})
 
