@@ -95,7 +95,7 @@ var rootCmd = &cobra.Command{
 
 		case strings.HasPrefix(target, "--fzf-preview"):
 			// Preview for FZF
-			label := strings.TrimPrefix(target, "--fzf-preview")
+			label := strings.TrimSpace(strings.TrimPrefix(target, "--fzf-preview"))
 			FzfPreview(label)
 
 		case target == "--pd-refresh":
