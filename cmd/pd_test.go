@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -124,6 +125,52 @@ func TestCollectUserProjectsRespectsTrailingSlashSkipDirs(t *testing.T) {
 	}
 }
 
+func TestLogCwdCommandCreatesHistoryAndWritesNoStdout(t *testing.T) {
+	home := configureProjectCollectionTest(t)
+	workDir := filepath.Join(home, "work")
+	mkdirAll(t, workDir)
+
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatal(err)
+	}
+	loggedDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldHistoryFile := historyFile
+	historyFile = filepath.Join(home, ".local", "state", "pd", "history")
+	t.Cleanup(func() { historyFile = oldHistoryFile })
+
+	out := captureStdout(t, func() {
+		rootCmd.Run(rootCmd, []string{"--pd-log-cwd"})
+		rootCmd.Run(rootCmd, []string{"--pd-log-cwd"})
+	})
+
+	if out != "" {
+		t.Fatalf("--pd-log-cwd wrote stdout %q, want empty", out)
+	}
+
+	entries := currentlyLoggedProjects()
+	entry, ok := entries[loggedDir]
+	if !ok {
+		t.Fatalf("expected %s to be logged in %#v", loggedDir, entries)
+	}
+	if entry.Count != 2 {
+		t.Fatalf("entry count = %d, want 2", entry.Count)
+	}
+}
+
 func configureProjectCollectionTest(t *testing.T) string {
 	t.Helper()
 
@@ -151,6 +198,31 @@ func mkdirAll(t *testing.T, path string) {
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	fn()
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = oldStdout
+
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return string(out)
 }
 
 func writeFile(t *testing.T, path, content string) {

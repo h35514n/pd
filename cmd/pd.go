@@ -140,6 +140,12 @@ func ChangeDirectory(target string) {
 	RefreshLog(false)
 }
 
+// LogCurrentDirectory silently appends the current working directory to the
+// history file. It is intended for shell hooks that track ordinary cd usage.
+func LogCurrentDirectory() {
+	addLogEntry(workingDir())
+}
+
 // addLogEntry appends a log entry for the given absolute path to the history
 // file, skipping the home directory (home is always shown separately).
 func addLogEntry(abspath string) {
@@ -147,9 +153,11 @@ func addLogEntry(abspath string) {
 		return
 	}
 
+	ensureDirExists(filepath.Dir(expandPath(historyFile)))
+
 	f, err := os.OpenFile(
 		expandPath(historyFile),
-		os.O_APPEND|os.O_WRONLY,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0600,
 	)
 	check(err)

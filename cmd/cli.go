@@ -110,6 +110,9 @@ Examples:
   pd -
 
 Given no arguments, open FZF to allow fuzzy-selecting a directory to cd into.
+
+Given --pd-log-cwd, silently log the current working directory. This is intended
+for shell hooks that track ordinary cd, pushd, and popd directory changes.
 `
 
 var rootCmd = &cobra.Command{
@@ -139,6 +142,10 @@ var rootCmd = &cobra.Command{
 		case target == "--pd-refresh":
 			// Force a full refresh of project listing
 			RefreshLog(true)
+
+		case target == "--pd-log-cwd":
+			// Silently log the current working directory for shell hooks
+			LogCurrentDirectory()
 
 		case dirStackPattern.MatchString(target):
 			// Dir stack position → pass through unchanged

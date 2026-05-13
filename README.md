@@ -26,19 +26,39 @@ Recommended setup
 -----------------
 
 <details>
-<summary><strong>Zsh</strong></summary>
+<summary><strong>Zsh: full-feature without shadowing cd</strong></summary>
 
-**Zsh** (preferred): bind `pd` to a ZLE widget so it runs inline without
-overriding `cd`:
+**Zsh** (preferred): bind `pd` to a ZLE widget and use a `chpwd` hook to log
+ordinary directory changes without overriding `cd`:
 
 ```sh
 # ~/.zshrc
 
+_pd_log_cwd() {
+  if [[ -n "${_pd_skip_log_once:-}" ]]; then
+    _pd_skip_log_once=
+    return
+  fi
+
+  pd --pd-log-cwd >/dev/null 2>&1
+}
+
+autoload -Uz add-zsh-hook
+add-zsh-hook chpwd _pd_log_cwd
+
 pd-switch() {
   local dir
+  local oldpwd="$PWD"
   zle -I               # suspend ZLE input handling
   dir="$(pd)"
-  [[ -n "$dir" ]] && builtin cd "$dir"
+  if [[ -n "$dir" ]]; then
+    _pd_skip_log_once=1
+    if builtin cd "$dir"; then
+      [[ "$PWD" == "$oldpwd" ]] && _pd_skip_log_once=
+    else
+      _pd_skip_log_once=
+    fi
+  fi
   zle reset-prompt
 }
 zle -N pd-switch
@@ -47,28 +67,53 @@ bindkey '^h' pd-switch
 </details>
 
 <details>
-<summary><strong>Bash</strong></summary>
+<summary><strong>Bash: full-feature without shadowing cd</strong></summary>
 
-**Bash** (preferred): same idea using Readline's `bind -x` — no `cd` override
-needed:
+**Bash**: bind `pd` with Readline and use `PROMPT_COMMAND` to log ordinary
+directory changes without overriding `cd`:
 
 ```sh
 # ~/.bashrc
 
+_pd_last_pwd="$PWD"
+
+_pd_log_cwd() {
+  [[ "$PWD" == "$_pd_last_pwd" ]] && return
+  _pd_last_pwd="$PWD"
+
+  if [[ -n "${_pd_skip_log_once:-}" ]]; then
+    _pd_skip_log_once=
+    return
+  fi
+
+  pd --pd-log-cwd >/dev/null 2>&1
+}
+
+PROMPT_COMMAND="_pd_log_cwd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+
 pd-switch() {
   local dir
+  local oldpwd="$PWD"
   dir="$(pd)"
-  [[ -n "$dir" ]] && builtin cd "$dir"
+  if [[ -n "$dir" ]]; then
+    _pd_skip_log_once=1
+    if builtin cd "$dir"; then
+      [[ "$PWD" == "$oldpwd" ]] && _pd_skip_log_once=
+    else
+      _pd_skip_log_once=
+    fi
+  fi
 }
 bind -x '"\C-h": pd-switch'
 ```
 </details>
 
 <details>
-<summary><strong>Fallback</strong></summary>
+<summary><strong>Portable full-feature fallback</strong></summary>
 
-**Fallback** (any shell): wrap `cd` to delegate to `pd`. More intrusive because
-it shadows the builtin, but works in Bash, Zsh, and similar shells:
+**Portable fallback** (any shell): wrap `cd` to delegate to `pd`. This is more
+intrusive because it shadows the builtin, but it gives the full p/d experience
+in shells without a convenient directory-change hook:
 
 ```sh
 # ~/.bashrc or ~/.zshrc
@@ -83,6 +128,26 @@ cd() {
 }
 ```
 
+</details>
+
+<details>
+<summary><strong>Selector-only setup</strong></summary>
+
+If you only bind `pd` to a key without a shell hook or `cd` wrapper, fuzzy
+selection works but arbitrary `cd` targets are not logged or counted.
+
+```sh
+# Example: zsh selector-only binding
+pd-switch() {
+  local dir
+  zle -I
+  dir="$(pd)"
+  [[ -n "$dir" ]] && builtin cd "$dir"
+  zle reset-prompt
+}
+zle -N pd-switch
+bindkey '^h' pd-switch
+```
 </details>
 
 
@@ -117,6 +182,9 @@ pd -
 ```
 
 Given no arguments, open FZF to allow fuzzy-selecting a directory to cd into.
+
+Given `--pd-log-cwd`, silently add the current working directory to the history
+file. This is intended for shell hooks; it prints nothing.
 
 Given `--pd-refresh`, rescan $HOME for Git, Projectile, and marker-detected
 projects, merge with visit history, and rewrite the history file. Use this to
