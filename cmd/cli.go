@@ -113,6 +113,9 @@ Given no arguments, open FZF to allow fuzzy-selecting a directory to cd into.
 
 Given --pd-log-cwd, silently log the current working directory. This is intended
 for shell hooks that track ordinary cd, pushd, and popd directory changes.
+
+Given --pd-setup, install the recommended shell setup for zsh or bash. Pass zsh
+or bash explicitly to override automatic shell detection.
 `
 
 var rootCmd = &cobra.Command{
@@ -124,6 +127,7 @@ var rootCmd = &cobra.Command{
 	Args:               cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		target := strings.TrimSpace(strings.Join(args, " "))
+		setupShellArg, isSetup, setupErr := parseSetupTarget(target)
 
 		switch {
 		case len(target) == 0:
@@ -146,6 +150,14 @@ var rootCmd = &cobra.Command{
 		case target == "--pd-log-cwd":
 			// Silently log the current working directory for shell hooks
 			LogCurrentDirectory()
+
+		case isSetup:
+			// Install managed shell setup block
+			check(setupErr)
+			rcPath, err := setupShell(setupShellArg)
+			check(err)
+			fmt.Println("Installed pd shell setup in", rcPath)
+			fmt.Println("Restart your shell or source the file to activate it.")
 
 		case dirStackPattern.MatchString(target):
 			// Dir stack position → pass through unchanged
