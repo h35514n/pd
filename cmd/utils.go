@@ -101,17 +101,50 @@ func stateDir() string {
 
 // isProject returns true if path is considered a project directory.
 func isProject(path string) bool {
-	return isVersionControlled(path) || isProjectile(path)
+	for _, marker := range activeProjectMarkers() {
+		if markerMatches(path, marker) {
+			return true
+		}
+	}
+
+	return false
 }
 
-// isVersionControlled returns true if path is under version control (git).
-func isVersionControlled(path string) bool {
-	return exists(filepath.Join(path, ".git"))
+func activeProjectMarkers() []string {
+	if len(projectMarkers) > 0 {
+		return projectMarkers
+	}
+
+	return defaultProjectMarkers
 }
 
-// isProjectile returns true if path is a Projectile project.
-func isProjectile(path string) bool {
-	return exists(filepath.Join(path, ".projectile"))
+func markerMatches(path, marker string) bool {
+	requireDir := strings.HasSuffix(marker, "/")
+	marker = strings.TrimSuffix(marker, "/")
+	if marker == "" || filepath.IsAbs(marker) {
+		return false
+	}
+
+	candidate := filepath.Join(path, filepath.Clean(marker))
+	info, err := os.Stat(candidate)
+	if err != nil {
+		return false
+	}
+
+	return !requireDir || info.IsDir()
+}
+
+func cleanProjectMarkers(markers []string) []string {
+	cleaned := make([]string, 0, len(markers))
+	for _, marker := range markers {
+		marker = strings.TrimSpace(marker)
+		if marker == "" || filepath.IsAbs(marker) {
+			continue
+		}
+		cleaned = append(cleaned, marker)
+	}
+
+	return cleaned
 }
 
 // check prints an error and exits non-zero.
@@ -199,13 +232,41 @@ func toSkipDirSet(strs []string) map[string]bool {
 	set := make(map[string]bool, len(strs))
 
 	for _, s := range strs {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+
 		expanded, err := homedir.Expand(s)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not expand skip_dirs entry '%s': %v\n", s, err)
 			continue
 		}
-		set[expanded] = true
+		set[filepath.Clean(expanded)] = true
 	}
 
 	return set
+}
+
+func mergeSkipDirPatterns(userSkipDirs []string) []string {
+	merged := make([]string, 0, len(defaultSkipDirs)+len(userSkipDirs))
+	merged = append(merged, defaultSkipDirs...)
+	merged = append(merged, userSkipDirs...)
+	return merged
+}
+
+func isSkippedDir(path string) bool {
+	path = filepath.Clean(path)
+	for skipDir := range skipDirs {
+		if path == skipDir {
+			return true
+		}
+
+		rel, err := filepath.Rel(skipDir, path)
+		if err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return true
+		}
+	}
+
+	return false
 }

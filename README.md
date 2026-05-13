@@ -118,10 +118,51 @@ pd -
 
 Given no arguments, open FZF to allow fuzzy-selecting a directory to cd into.
 
-Given `--pd-refresh`, rescan $HOME for version-controlled and Projectile
-projects, merge with visit history, and rewrite the history file. Use this
-to pre-warm the directory list after installing or when new projects have been
+Given `--pd-refresh`, rescan $HOME for Git, Projectile, and marker-detected
+projects, merge with visit history, and rewrite the history file. Use this to
+pre-warm the directory list after installing or when new projects have been
 added.
+
+Project markers are configured in `~/.config/pd/config.yaml` with the
+`project_markers` key. A directory is considered a project when it contains any
+marker. Markers ending in `/` must be directories; other markers can be files or
+directories. The default markers are:
+
+```yaml
+project_markers:
+  - .git
+  - .projectile
+  - Makefile
+  - go.mod
+  - package.json
+  - pyproject.toml
+  - Cargo.toml
+  - src/
+  - lib/
+```
+
+Add your own markers to tune discovery:
+
+```yaml
+project_markers:
+  - .git
+  - .projectile
+  - Makefile
+  - go.mod
+  - package.json
+  - pyproject.toml
+  - Cargo.toml
+  - src/
+  - lib/
+  - config.toml
+  - env/
+```
+
+`skip_dirs` prevents noisy system and cache directories from being scanned. By
+default, `pd` skips common macOS and Linux locations such as `~/Library`,
+`~/.Trash`, `~/.cache`, `~/.local/share/Trash`, `~/.var`, and package manager
+caches like `~/.npm`, `~/.cargo/registry`, `~/.gradle`, and `~/.m2/repository`.
+Set `skip_dirs` in your config to add more directories to skip.
 
 Running `pd --pd-refresh` periodically keeps the directory list current as
 projects are created or cloned. Two common approaches:

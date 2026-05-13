@@ -31,18 +31,54 @@ const (
 	configFileName = "config"
 	configFileType = "yaml"
 
-	configKeyHistoryFile = "history_filepath"
-	configKeyDebug       = "debug"
-	configKeySkipDirs    = "skip_dirs"
+	configKeyHistoryFile    = "history_filepath"
+	configKeyDebug          = "debug"
+	configKeySkipDirs       = "skip_dirs"
+	configKeyProjectMarkers = "project_markers"
 )
 
 var (
-	historyFile string
-	skipDirs    map[string]bool
-	debug       bool
+	historyFile    string
+	skipDirs       map[string]bool
+	projectMarkers []string
+	debug          bool
 
 	dirStackPattern = regexp.MustCompile(`\A[-+][0-9]*\z`)
 )
+
+var defaultProjectMarkers = []string{
+	".git",
+	".projectile",
+	"Makefile",
+	"go.mod",
+	"package.json",
+	"pyproject.toml",
+	"Cargo.toml",
+	"src/",
+	"lib/",
+}
+
+var defaultSkipDirs = []string{
+	"~/Library",
+	"~/.Trash",
+	"~/.cache",
+	"~/.local/share/Trash",
+	"~/.local/share/containers",
+	"~/.local/share/flatpak",
+	"~/.var",
+	"~/.npm",
+	"~/.cargo/registry",
+	"~/.rustup",
+	"~/.gradle",
+	"~/.m2/repository",
+	"~/.gem",
+	"~/.bundle",
+	"~/.pyenv",
+	"~/.rbenv",
+	"~/.nvm",
+	"~/.mozilla",
+	"~/.thunderbird",
+}
 
 var help = `
 p/d
@@ -135,7 +171,8 @@ func initConfig() {
 	// Config defaults
 	viper.SetDefault(configKeyHistoryFile, filepath.Join(statePath, defaultHistoryFilename))
 	viper.SetDefault(configKeyDebug, false)
-	viper.SetDefault(configKeySkipDirs, []string{"~/Library/"})
+	viper.SetDefault(configKeySkipDirs, defaultSkipDirs)
+	viper.SetDefault(configKeyProjectMarkers, defaultProjectMarkers)
 
 	// Config file
 	viper.AddConfigPath(cfgDir)
@@ -148,5 +185,6 @@ func initConfig() {
 	// Effective configuration
 	debug = viper.GetBool(configKeyDebug)
 	historyFile = expandPath(viper.GetString(configKeyHistoryFile))
-	skipDirs = toSkipDirSet(viper.GetStringSlice(configKeySkipDirs))
+	skipDirs = toSkipDirSet(mergeSkipDirPatterns(viper.GetStringSlice(configKeySkipDirs)))
+	projectMarkers = cleanProjectMarkers(viper.GetStringSlice(configKeyProjectMarkers))
 }

@@ -109,10 +109,10 @@ func FzfPreview(label string) {
 
 // RefreshLog rewrites the history file.
 //
-// When searchForProjects is true, it rescans $HOME for version-controlled or
-// Projectile projects, merges them with existing log entries, and rewrites
-// history. When false, it simply rewrites the existing entries (coalescing
-// counts and re-sorting) without scanning the filesystem.
+// When searchForProjects is true, it rescans $HOME for marker-detected
+// projects, merges them with existing log entries, and rewrites history. When
+// false, it simply rewrites the existing entries (coalescing counts and
+// re-sorting) without scanning the filesystem.
 func RefreshLog(searchForProjects bool) {
 	var projects []string
 	if searchForProjects {
@@ -179,6 +179,7 @@ func collectUserProjects() []string {
 	}
 
 	var projects []string
+	seen := make(map[string]bool)
 
 	_ = filepath.Walk(
 		homeDir(),
@@ -190,15 +191,18 @@ func collectUserProjects() []string {
 			case !info.IsDir():
 				// Skip non-directories
 				return nil
-			case strings.HasPrefix(info.Name(), "."):
-				// Do not recurse into dot-directories
-				return filepath.SkipDir
-			case skipDirs[path]:
+			case isSkippedDir(path):
 				// Do not recurse into explicitly skipped directories
 				return filepath.SkipDir
 			case isProject(path):
 				// Record project and do not recurse further into it
-				projects = append(projects, path)
+				addProjectPath(&projects, seen, path)
+				if markerMatches(path, ".git") {
+					addGitSubmoduleProjects(&projects, seen, path)
+				}
+				return filepath.SkipDir
+			case strings.HasPrefix(info.Name(), "."):
+				// Do not recurse into dot-directories unless they are projects
 				return filepath.SkipDir
 			default:
 				return nil
@@ -207,6 +211,60 @@ func collectUserProjects() []string {
 	)
 
 	return projects
+}
+
+func addProjectPath(projects *[]string, seen map[string]bool, path string) {
+	if seen[path] {
+		return
+	}
+
+	seen[path] = true
+	*projects = append(*projects, path)
+}
+
+func addGitSubmoduleProjects(projects *[]string, seen map[string]bool, path string) {
+	for _, submodulePath := range gitSubmodulePaths(path) {
+		if seen[submodulePath] || isSkippedDir(submodulePath) {
+			continue
+		}
+
+		info, err := os.Stat(submodulePath)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+
+		addProjectPath(projects, seen, submodulePath)
+		if markerMatches(submodulePath, ".git") {
+			addGitSubmoduleProjects(projects, seen, submodulePath)
+		}
+	}
+}
+
+func gitSubmodulePaths(path string) []string {
+	fp, err := os.Open(filepath.Join(path, ".gitmodules"))
+	if err != nil {
+		return nil
+	}
+	defer fp.Close()
+
+	var paths []string
+	scanner := bufio.NewScanner(fp)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		key, value, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(key) != "path" {
+			continue
+		}
+
+		submodulePath := strings.TrimSpace(value)
+		if submodulePath == "" || filepath.IsAbs(submodulePath) {
+			continue
+		}
+
+		paths = append(paths, filepath.Join(path, filepath.Clean(submodulePath)))
+	}
+
+	return paths
 }
 
 // currentlyLoggedProjects reads the history file and returns a map keyed by
