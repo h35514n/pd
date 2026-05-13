@@ -105,8 +105,7 @@ bindkey '^h' pd-switch
 # <<< pd setup <<<
 ```
 
-This binds fuzzy selection to
-`<kbd>`{=html}Ctrl`</kbd>`{=html}+`<kbd>`{=html}H`</kbd>`{=html} and
+This binds fuzzy selection to <kbd>Ctrl</kbd>+<kbd>h</kbd> and
 logs ordinary directory changes through `chpwd`.
 
 ### Bash setup block
@@ -152,7 +151,7 @@ bind -x '"\C-h": pd-switch'
 ```
 
 This binds fuzzy selection to
-`<kbd>`{=html}Ctrl`</kbd>`{=html}+`<kbd>`{=html}H`</kbd>`{=html} and
+<kbd>Ctrl</kbd>+<kbd>h</kbd> and
 logs ordinary directory changes through `PROMPT_COMMAND`.
 
 Fallback setup

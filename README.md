@@ -10,7 +10,7 @@ most-visited `cd` targets.
 
 It's written in [Go](https://golang.org/doc), and it *zooms*.
 
-[![asciicast](https://asciinema.org/a/330578.svg)](https://asciinema.org/a/330578)
+[![demo](./docs/assets/demo.gif)](https://asciinema.org/a/330647)
 
 Quick start
 -----------
@@ -30,8 +30,7 @@ pd --pd-setup
 `pd --pd-setup` detects zsh or bash from `$SHELL`, writes a managed
 block to your shell rc file, and installs:
 
-- a key binding for fuzzy selection:
-  `<kbd>`{=html}Ctrl`</kbd>`{=html}+`<kbd>`{=html}H`</kbd>`{=html}
+- a key binding for fuzzy selection: <kbd>Ctrl</kbd>+<kbd>h</kbd>
 - a directory-change hook so ordinary `cd`, `pushd`, and `popd` targets
   are logged and ranked
 
