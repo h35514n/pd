@@ -89,17 +89,8 @@ cd() {
 Usage
 -----
 ```
-% pd --help
-
-p/d
-
-Usage:
-
-  pd [directory name]
-
-Intended to be used in tandem with cd as follows:
-
-  cd $(pd ~/Documents)
+pd [directory name]
+```
 
 Given a file path, print its absolute form (resolving symlinks) and save to
 history. If a path to a non-directory is given, use its containing
@@ -107,20 +98,93 @@ directory instead.
 
 Examples:
 
-  pd ~/Documents/projects/my-project
-  pd ~/my-other-project
-  pd ./projects/my-project/some-file.txt
+```sh
+pd ~/Documents/projects/my-project
+pd ~/my-other-project
+pd ./projects/my-project/some-file.txt
+```
+
 
 Given a position on the directory stack, no-op. Print that back out to leave the
 behavior of cd unchanged.
 
 Examples:
-  pd -2
-  pd +1
-  pd -
+
+``` sh
+pd -2
+pd +1
+pd -
+```
 
 Given no arguments, open FZF to allow fuzzy-selecting a directory to cd into.
+
+Given `--pd-refresh`, rescan $HOME for version-controlled and Projectile
+projects, merge with visit history, and rewrite the history file. Use this
+to pre-warm the directory list after installing or when new projects have been
+added.
+
+Running `pd --pd-refresh` periodically keeps the directory list current as
+projects are created or cloned. Two common approaches:
+
+<details>
+<summary><strong>cron</strong></summary>
+
+**cron** — add an entry with `crontab -e`:
+
+```cron
+# Every 15 minutes
+*/15 * * * * /usr/local/bin/pd --pd-refresh
 ```
+</details>
+
+<details>
+<summary><strong>launchd</strong></summary>
+
+**launchd** (preferred over cron on macOS) — save a plist to
+
+`~/Library/LaunchAgents/com.local.pd-refresh.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local.pd-refresh</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/pd</string>
+    <string>--pd-refresh</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>900</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/pd-refresh.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/pd-refresh.log</string>
+</dict>
+</plist>
+```
+
+
+Then register it with launchd:
+
+```sh
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.local.pd-refresh.plist
+```
+
+To stop and unregister it:
+
+```sh
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.local.pd-refresh.plist
+```
+
+</details>
+
+**Note:** Find the `pd` binary path with `which pd` and substitute it above if
+it differs from `/usr/local/bin/pd` (e.g. `/opt/homebrew/bin/pd` on Apple
+Silicon, or `~/go/bin/pd` if installed via `go install`).
 
 Installation
 ------------

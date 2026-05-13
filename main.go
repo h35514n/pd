@@ -1,5 +1,5 @@
 /*
-Copyright © 2020 Jake Romer
+Copyright © 2026 J.M. Romer <h35514n@icloud.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
