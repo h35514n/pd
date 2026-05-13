@@ -9,7 +9,7 @@ most-visited `cd` targets.
 
 It's written in [Go][], and it _zooms_.
 
-[![asciicast][ascii-svg]][ascii]
+[![asciicast](https://asciinema.org/a/330578.svg)](https://asciinema.org/a/330578)
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Contents**
@@ -25,8 +25,53 @@ It's written in [Go][], and it _zooms_.
 Recommended setup
 -----------------
 
+<details>
+<summary><strong>Zsh</strong></summary>
+
+**Zsh** (preferred): bind `pd` to a ZLE widget so it runs inline without
+overriding `cd`:
+
 ```sh
 # ~/.zshrc
+
+pd-switch() {
+  local dir
+  zle -I               # suspend ZLE input handling
+  dir="$(pd)"
+  [[ -n "$dir" ]] && builtin cd "$dir"
+  zle reset-prompt
+}
+zle -N pd-switch
+bindkey '^h' pd-switch
+```
+</details>
+
+<details>
+<summary><strong>Bash</strong></summary>
+
+**Bash** (preferred): same idea using Readline's `bind -x` — no `cd` override
+needed:
+
+```sh
+# ~/.bashrc
+
+pd-switch() {
+  local dir
+  dir="$(pd)"
+  [[ -n "$dir" ]] && builtin cd "$dir"
+}
+bind -x '"\C-h": pd-switch'
+```
+</details>
+
+<details>
+<summary><strong>Fallback</strong></summary>
+
+**Fallback** (any shell): wrap `cd` to delegate to `pd`. More intrusive because
+it shadows the builtin, but works in Bash, Zsh, and similar shells:
+
+```sh
+# ~/.bashrc or ~/.zshrc
 
 # wrap built-in cd to:
 # 1. fuzzy-select a directory to visit when given no argument
@@ -36,10 +81,10 @@ Recommended setup
 cd() {
     builtin cd "$(pd "$1")" || return
 }
-
-# ^h cd with pd
-bindkey -s '^h' 'cd\n'
 ```
+
+</details>
+
 
 Usage
 -----
@@ -80,8 +125,6 @@ Given no arguments, open FZF to allow fuzzy-selecting a directory to cd into.
 Installation
 ------------
 
-Still a work in progress, so not yet published.
-
 Clone and build with `go build && go install`.
 
 License
@@ -96,8 +139,6 @@ p/d is written in [Go][] based on a prototype in [Ruby][].
 It builds upon prior art by [junegunn][] ([fzf][]) and [b4b4r07][]
 ([go-finder][]).
 
-[ascii-svg]: https://asciinema.org/a/330647.svg
-[ascii]: https://asciinema.org/a/330647
 [b4b4r07]: https://github.com/b4b4r07
 [fzf]: https://github.com/junegunn/fzf
 [go-finder]: https://github.com/b4b4r07/go-finder

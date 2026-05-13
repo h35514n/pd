@@ -1,4 +1,4 @@
-module github.com/jmromer/pd
+module github.com/h35514n/pd
 
 go 1.24.2
 
