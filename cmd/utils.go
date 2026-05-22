@@ -21,11 +21,23 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/glamour"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
+
+var readmeFilenames = []string{
+	"README.md",
+	"README.rst",
+	"README.txt",
+	"README.org",
+	"README.adoc",
+	"README.asciidoc",
+	"README",
+}
 
 func ensureDirExists(dir string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -225,6 +237,68 @@ func capturedOutput(cmd *exec.Cmd) (string, error) {
 	}
 
 	return out.String(), nil
+}
+
+// findReadme returns the path to the first README-style file found in dir,
+// or "" if none is present.
+func findReadme(dir string) string {
+	for _, name := range readmeFilenames {
+		p := filepath.Join(dir, name)
+		if exists(p) {
+			return p
+		}
+	}
+	return ""
+}
+
+// renderReadmeGlamour renders a Markdown file to ANSI in-process using glamour.
+// Style is controlled by the GLAMOUR_STYLE env var (default: "dark").
+func renderReadmeGlamour(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	style := os.Getenv("GLAMOUR_STYLE")
+	if style == "" {
+		style = "dark"
+	}
+
+	r, err := glamour.NewTermRenderer(
+		glamour.WithStandardStyle(style),
+		glamour.WithWordWrap(previewWidth()),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return r.Render(string(b))
+}
+
+// renderReadmeBat renders a file using bat with ANSI color and no decorations.
+func renderReadmeBat(path string) (string, error) {
+	cmd := exec.Command("bat", "--color=always", "--plain", path)
+	return capturedOutput(cmd)
+}
+
+// renderReadmePlain reads a file as plain text.
+func renderReadmePlain(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// previewWidth returns the FZF preview column count from the environment,
+// defaulting to 80.
+func previewWidth() int {
+	if w := os.Getenv("FZF_PREVIEW_COLUMNS"); w != "" {
+		if n, err := strconv.Atoi(w); err == nil {
+			return n
+		}
+	}
+	return 80
 }
 
 // toSkipDirSet converts a slice of directory patterns to an expanded set.

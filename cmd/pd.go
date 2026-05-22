@@ -80,12 +80,35 @@ func SelectProject() {
 	RefreshLog(false)
 }
 
-// FzfPreview lists the contents of the directory associated with the given
-// project label, writing to stdout. This is intended for the FZF preview
-// window and attempts eza → tree → ls in that order.
+// FzfPreview shows a README when one is found in the project directory,
+// falling back to a directory listing (eza → tree → ls) otherwise.
+// This is intended for the FZF preview window.
 func FzfPreview(label string) {
 	abspath := projectLabelToAbsPath(label)
 	abbreviated := strings.Replace(abspath, homeDir(), "~", 1)
+
+	if readme := findReadme(abspath); readme != "" {
+		fmt.Println(abbreviated)
+
+		ext := strings.ToLower(filepath.Ext(readme))
+		var content string
+		var err error
+
+		if ext == ".md" {
+			content, err = renderReadmeGlamour(readme)
+		}
+		if content == "" || err != nil {
+			content, err = renderReadmeBat(readme)
+		}
+		if content == "" || err != nil {
+			content, _ = renderReadmePlain(readme)
+		}
+
+		if content != "" {
+			fmt.Print(content)
+			return
+		}
+	}
 
 	list, err := listFilesEza(abspath, abbreviated)
 
