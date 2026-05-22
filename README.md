@@ -15,10 +15,10 @@ It's written in [Go](https://golang.org/doc), and it *zooms*.
 Quick start
 -----------
 
-Clone and install:
+Clone and build:
 
 ``` sh
-go install
+go build [-o <target path in your PATH>]
 ```
 
 Install the recommended shell integration:
