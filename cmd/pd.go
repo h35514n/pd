@@ -44,7 +44,7 @@ func SelectProject() {
 		"--exact",
 		"--no-multi",
 		"--no-sort",
-		"--preview-window='right,60%,<60(top,80%)'",
+		"--preview-window='right,60%,<50(bottom,80%)'",
 		"--reverse",
 		"--tiebreak=index",
 		`--preview="pd --fzf-preview "{+}""`,
