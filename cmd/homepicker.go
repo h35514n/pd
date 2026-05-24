@@ -44,12 +44,14 @@ func HomePicker() {
 		"--ansi",
 		"--cycle",
 		"--exact",
+		"--header=$HOME subdirectories",
 		"--no-multi",
 		"--no-sort",
+		"--preview", "ls -A --group-directories-first --color $HOME/{}",
+		"--preview-window", "right,60%,<60(top,80%)",
+		"--prompt=~> ",
 		"--reverse",
 		"--tiebreak=index",
-		"--prompt=~> ",
-		"--header=$HOME subdirectories",
 	)
 	cmd.Stderr = os.Stderr
 
