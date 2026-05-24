@@ -182,17 +182,15 @@ func checkConfigFile(err error) {
 	check(err)
 }
 
-// listFilesEza lists the contents of path using "eza", printing the abbreviated
-// path header (e.g. "~" for home).
+// listFilesEza lists the contents of path using "eza"
 func listFilesEza(path, abbreviated string) (string, error) {
-	fmt.Println(abbreviated)
-
 	cmd := exec.Command(
 		"eza",
-		"--all",
+		"--tree",
+		"-L2",
+		"--only-dirs",
 		"--color=always",
 		"--group-directories-first",
-		"-1",
 		path,
 	)
 
@@ -201,6 +199,7 @@ func listFilesEza(path, abbreviated string) (string, error) {
 
 // listFilesLs lists the contents of path using "ls".
 func listFilesLs(path, _ string) (string, error) {
+	fmt.Println(path)
 	cmd := exec.Command(
 		"ls",
 		"--almost-all",

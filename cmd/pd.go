@@ -95,7 +95,11 @@ func FzfPreview(label string) {
 	abbreviated := strings.Replace(abspath, homeDir(), "~", 1)
 
 	if readme := findReadme(abspath); readme != "" {
-		fmt.Println(abbreviated)
+		if strings.HasSuffix(readme, ".md") {
+			fmt.Printf("  \033[30m%s\033[0m\n", abbreviated)
+		} else {
+			fmt.Printf("\033[30m%s\033[0m\n", abbreviated)
+		}
 
 		ext := strings.ToLower(filepath.Ext(readme))
 		var content string
