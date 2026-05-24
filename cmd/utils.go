@@ -301,46 +301,79 @@ func previewWidth() int {
 	return 80
 }
 
-// toSkipDirSet converts a slice of directory patterns to an expanded set.
-func toSkipDirSet(strs []string) map[string]bool {
-	set := make(map[string]bool, len(strs))
-
-	for _, s := range strs {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-
-		expanded, err := homedir.Expand(s)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not expand skip_dirs entry '%s': %v\n", s, err)
-			continue
-		}
-		set[filepath.Clean(expanded)] = true
-	}
-
-	return set
-}
-
-func mergeSkipDirPatterns(userSkipDirs []string) []string {
-	merged := make([]string, 0, len(defaultSkipDirs)+len(userSkipDirs))
-	merged = append(merged, defaultSkipDirs...)
-	merged = append(merged, userSkipDirs...)
+// mergeExcludes prepends defaultExcludes to user entries (additive merge).
+func mergeExcludes(user []string) []string {
+	merged := make([]string, 0, len(defaultExcludes)+len(user))
+	merged = append(merged, defaultExcludes...)
+	merged = append(merged, user...)
 	return merged
 }
 
-func isSkippedDir(path string) bool {
+// classifyExcludes splits exclude entries into path patterns and basename
+// patterns. Entries containing '/' are paths (with ~/ expansion); others are
+// basename globs. Invalid patterns are dropped with a stderr warning.
+func classifyExcludes(entries []string) (paths, basenames []string) {
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if _, err := filepath.Match(entry, "x"); err != nil {
+			fmt.Fprintf(os.Stderr,
+				"Warning: invalid excludes pattern %q: %v\n", entry, err)
+			continue
+		}
+		if strings.Contains(entry, "/") {
+			expanded, err := homedir.Expand(entry)
+			if err != nil {
+				fmt.Fprintf(os.Stderr,
+					"Warning: could not expand excludes entry %q: %v\n", entry, err)
+				continue
+			}
+			paths = append(paths, filepath.Clean(expanded))
+			continue
+		}
+		basenames = append(basenames, entry)
+	}
+	return paths, basenames
+}
+
+// containsGlobChars reports whether s has any filepath.Match metacharacter.
+func containsGlobChars(s string) bool {
+	return strings.ContainsAny(s, "*?[")
+}
+
+// isExcludedPath reports whether path matches an excludePathPatterns entry.
+// Non-glob entries match the path itself and all descendants; glob entries
+// use filepath.Match against the full path.
+func isExcludedPath(path string) bool {
 	path = filepath.Clean(path)
-	for skipDir := range skipDirs {
-		if path == skipDir {
+	for _, pattern := range excludePathPatterns {
+		if containsGlobChars(pattern) {
+			if ok, _ := filepath.Match(pattern, path); ok {
+				return true
+			}
+			continue
+		}
+		if path == pattern {
 			return true
 		}
-
-		rel, err := filepath.Rel(skipDir, path)
-		if err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		rel, err := filepath.Rel(pattern, path)
+		if err == nil && rel != "." && rel != ".." &&
+			!strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			return true
 		}
 	}
+	return false
+}
 
+// isExcludedBasename reports whether name matches any pattern in
+// excludeBasenamePatterns via filepath.Match.
+func isExcludedBasename(name string) bool {
+	for _, pattern := range excludeBasenamePatterns {
+		if ok, _ := filepath.Match(pattern, name); ok {
+			return true
+		}
+	}
 	return false
 }

@@ -33,15 +33,16 @@ const (
 
 	configKeyHistoryFile    = "history_filepath"
 	configKeyDebug          = "debug"
-	configKeySkipDirs       = "skip_dirs"
+	configKeyExcludes       = "excludes"
 	configKeyProjectMarkers = "project_markers"
 )
 
 var (
-	historyFile    string
-	skipDirs       map[string]bool
-	projectMarkers []string
-	debug          bool
+	historyFile             string
+	excludePathPatterns     []string
+	excludeBasenamePatterns []string
+	projectMarkers          []string
+	debug                   bool
 
 	dirStackPattern = regexp.MustCompile(`\A[-+][0-9]*\z`)
 )
@@ -58,7 +59,11 @@ var defaultProjectMarkers = []string{
 	"lib/",
 }
 
-var defaultSkipDirs = []string{
+// defaultExcludes is a flat list of patterns excluded from project / home
+// walks. Entries containing '/' are treated as paths (with ~/ expansion);
+// entries without '/' are treated as basename globs (filepath.Match).
+var defaultExcludes = []string{
+	// Paths
 	"~/Library",
 	"~/.Trash",
 	"~/.cache",
@@ -78,6 +83,17 @@ var defaultSkipDirs = []string{
 	"~/.nvm",
 	"~/.mozilla",
 	"~/.thunderbird",
+
+	// Basename globs
+	".git",
+	".github",
+	".svn",
+	".hg",
+	".bzr",
+	"node_modules",
+	"__pycache__",
+	".venv",
+	"vendor",
 }
 
 var help = `
@@ -147,6 +163,10 @@ var rootCmd = &cobra.Command{
 			// Force a full refresh of project listing
 			RefreshLog(true)
 
+		case target == "--home-picker":
+			// Fallback picker: every directory under $HOME
+			HomePicker()
+
 		case target == "--pd-log-cwd":
 			// Silently log the current working directory for shell hooks
 			LogCurrentDirectory()
@@ -182,7 +202,7 @@ func Execute() {
 }
 
 // initConfig reads config file and environment variables, then initializes
-// global configuration (historyFile, skipDirs, debug).
+// global configuration (historyFile, excludes, debug).
 func initConfig() {
 	cfgDir := configDir()
 	statePath := stateDir()
@@ -190,7 +210,6 @@ func initConfig() {
 	// Config defaults
 	viper.SetDefault(configKeyHistoryFile, filepath.Join(statePath, defaultHistoryFilename))
 	viper.SetDefault(configKeyDebug, false)
-	viper.SetDefault(configKeySkipDirs, defaultSkipDirs)
 	viper.SetDefault(configKeyProjectMarkers, defaultProjectMarkers)
 
 	// Config file
@@ -204,6 +223,8 @@ func initConfig() {
 	// Effective configuration
 	debug = viper.GetBool(configKeyDebug)
 	historyFile = expandPath(viper.GetString(configKeyHistoryFile))
-	skipDirs = toSkipDirSet(mergeSkipDirPatterns(viper.GetStringSlice(configKeySkipDirs)))
+	excludePathPatterns, excludeBasenamePatterns = classifyExcludes(
+		mergeExcludes(viper.GetStringSlice(configKeyExcludes)),
+	)
 	projectMarkers = cleanProjectMarkers(viper.GetStringSlice(configKeyProjectMarkers))
 }

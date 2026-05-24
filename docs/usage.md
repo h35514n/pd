@@ -229,12 +229,28 @@ project_markers:
   - env/
 ```
 
-`skip_dirs` prevents noisy system and cache directories from being
-scanned. By default, `pd` skips common macOS and Linux locations such as
-`~/Library`, `~/.Trash`, `~/.cache`, `~/.local/share/Trash`, `~/.var`,
-and package manager caches like `~/.npm`, `~/.cargo/registry`,
-`~/.gradle`, and `~/.m2/repository`. Set `skip_dirs` in your config to
-add more directories to skip.
+`excludes` prevents directories from being walked. Each entry is
+auto-classified: entries containing `/` are matched as paths (with `~/`
+expansion); entries with no `/` are matched as `filepath.Match` glob
+patterns against each directory's name, anywhere in the tree.
+
+Defaults cover common macOS/Linux system locations (`~/Library`,
+`~/.Trash`, `~/.cache`, and package manager caches like `~/.npm`,
+`~/.cargo/registry`, `~/.gradle`, `~/.m2/repository`) and noisy
+directory names (`node_modules`, `.git`, `__pycache__`, `vendor`,
+and similar). User entries are additive — they extend rather than
+replace the defaults.
+
+Examples:
+
+``` yaml
+excludes:
+  - ~/Library            # path: exact match + descendants
+  - ~/.dotfiles/cache    # path: matches this dir and below
+  - ~/Code/*/build       # path glob: any project's build/ dir
+  - node_modules         # basename: any dir named node_modules
+  - "*.egg-info"         # basename glob
+```
 
 Periodic refresh
 ----------------

@@ -39,6 +39,7 @@ func SelectProject() {
 		"--ansi",
 		"--bind 'ctrl-b:preview-up'",
 		"--bind 'ctrl-f:preview-down'",
+		"--bind 'ctrl-h:become(pd --home-picker)'",
 		"--cycle",
 		"--exact",
 		"--no-multi",
@@ -71,9 +72,14 @@ func SelectProject() {
 		return
 	}
 
-	// The selected label is stripped of ANSI color codes; use listingIndex
-	// to retrieve the associated absolute path.
-	abspath := listingIndex[selection[0]]
+	// The selected label is stripped of ANSI color codes; use listingIndex to
+	// retrieve the associated absolute path. If the selection isn't in the
+	// index, it came from --home-picker as an already-absolute path.
+	sel := selection[0]
+	abspath, ok := listingIndex[sel]
+	if !ok {
+		abspath = sel
+	}
 	fmt.Println(abspath)
 	addLogEntry(abspath)
 
@@ -222,8 +228,8 @@ func collectUserProjects() []string {
 			case !info.IsDir():
 				// Skip non-directories
 				return nil
-			case isSkippedDir(path):
-				// Do not recurse into explicitly skipped directories
+			case isExcludedPath(path) || isExcludedBasename(info.Name()):
+				// Do not recurse into excluded directories
 				return filepath.SkipDir
 			case isProject(path):
 				// Record project and do not recurse further into it
@@ -255,7 +261,9 @@ func addProjectPath(projects *[]string, seen map[string]bool, path string) {
 
 func addGitSubmoduleProjects(projects *[]string, seen map[string]bool, path string) {
 	for _, submodulePath := range gitSubmodulePaths(path) {
-		if seen[submodulePath] || isSkippedDir(submodulePath) {
+		if seen[submodulePath] ||
+			isExcludedPath(submodulePath) ||
+			isExcludedBasename(filepath.Base(submodulePath)) {
 			continue
 		}
 

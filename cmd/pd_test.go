@@ -68,7 +68,7 @@ func TestCollectUserProjectsSkipsDefaultSystemDirs(t *testing.T) {
 	mkdirAll(t, filepath.Join(libraryProject, ".git"))
 	mkdirAll(t, filepath.Join(cacheProject, ".git"))
 
-	skipDirs = toSkipDirSet(defaultSkipDirs)
+	excludePathPatterns, excludeBasenamePatterns = classifyExcludes(defaultExcludes)
 
 	projects := collectUserProjects()
 	if len(projects) != 0 {
@@ -84,7 +84,7 @@ func TestCollectUserProjectsMergesDefaultAndUserSkipDirs(t *testing.T) {
 	mkdirAll(t, filepath.Join(trash, "lib"))
 	mkdirAll(t, filepath.Join(userSkipped, ".git"))
 
-	skipDirs = toSkipDirSet(mergeSkipDirPatterns([]string{userSkipped}))
+	excludePathPatterns, excludeBasenamePatterns = classifyExcludes(mergeExcludes([]string{userSkipped}))
 
 	projects := collectUserProjects()
 	if len(projects) != 0 {
@@ -103,7 +103,7 @@ func TestCollectUserProjectsRespectsSkipDirsForSubmodules(t *testing.T) {
 	writeFile(t, filepath.Join(submodule, ".git"), "gitdir: ../../.git/modules/one\n")
 	writeFile(t, filepath.Join(repo, ".gitmodules"), "[submodule \"one\"]\n\tpath = modules/one\n")
 
-	skipDirs = toSkipDirSet([]string{filepath.Join(repo, "modules") + string(os.PathSeparator)})
+	excludePathPatterns, excludeBasenamePatterns = classifyExcludes([]string{filepath.Join(repo, "modules") + string(os.PathSeparator)})
 
 	projects := collectUserProjects()
 	if !equalStrings(projects, []string{repo}) {
@@ -117,7 +117,7 @@ func TestCollectUserProjectsRespectsTrailingSlashSkipDirs(t *testing.T) {
 	libraryProject := filepath.Join(home, "Library", "Caches", "repo")
 	mkdirAll(t, filepath.Join(libraryProject, ".git"))
 
-	skipDirs = toSkipDirSet([]string{filepath.Join(home, "Library") + string(os.PathSeparator)})
+	excludePathPatterns, excludeBasenamePatterns = classifyExcludes([]string{filepath.Join(home, "Library") + string(os.PathSeparator)})
 
 	projects := collectUserProjects()
 	if len(projects) != 0 {
@@ -179,14 +179,17 @@ func configureProjectCollectionTest(t *testing.T) string {
 
 	oldDisableCache := homedir.DisableCache
 	homedir.DisableCache = true
-	oldSkipDirs := skipDirs
+	oldExcludePathPatterns := excludePathPatterns
+	oldExcludeBasenamePatterns := excludeBasenamePatterns
 	oldProjectMarkers := projectMarkers
-	skipDirs = make(map[string]bool)
+	excludePathPatterns = nil
+	excludeBasenamePatterns = nil
 	projectMarkers = nil
 
 	t.Cleanup(func() {
 		homedir.DisableCache = oldDisableCache
-		skipDirs = oldSkipDirs
+		excludePathPatterns = oldExcludePathPatterns
+		excludeBasenamePatterns = oldExcludeBasenamePatterns
 		projectMarkers = oldProjectMarkers
 	})
 
