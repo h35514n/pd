@@ -163,9 +163,10 @@ var rootCmd = &cobra.Command{
 			// Force a full refresh of project listing
 			RefreshLog(true)
 
-		case target == "--home-picker":
+		case strings.HasPrefix(target, "--home-picker"):
 			// Fallback picker: every directory under $HOME
-			HomePicker()
+			query := strings.TrimSpace(strings.TrimPrefix(target, "--home-picker"))
+			HomePicker(query)
 
 		case target == "--pd-log-cwd":
 			// Silently log the current working directory for shell hooks

@@ -39,7 +39,7 @@ func SelectProject() {
 		"--ansi",
 		"--bind 'ctrl-b:preview-up'",
 		"--bind 'ctrl-f:preview-down'",
-		"--bind 'ctrl-h:become(pd --home-picker)'",
+		"--bind 'ctrl-h:become(pd --home-picker {q})'",
 		"--cycle",
 		"--exact",
 		"--no-multi",

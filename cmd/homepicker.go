@@ -38,9 +38,8 @@ const homePickerMaxDepth = 10
 // completion *before* starting fzf, which deadlocks on inputs that exceed
 // the OS pipe buffer (~64KB). The home walk easily produces megabytes of
 // paths, so we drive exec.Cmd directly.
-func HomePicker() {
-	cmd := exec.Command(
-		"fzf",
+func HomePicker(initialQuery string) {
+	args := []string{
 		"--ansi",
 		"--cycle",
 		"--exact",
@@ -52,7 +51,11 @@ func HomePicker() {
 		"--prompt=~> ",
 		"--reverse",
 		"--tiebreak=index",
-	)
+	}
+	if initialQuery != "" {
+		args = append(args, "--query", initialQuery)
+	}
+	cmd := exec.Command("fzf", args...)
 	cmd.Stderr = os.Stderr
 
 	stdin, err := cmd.StdinPipe()
