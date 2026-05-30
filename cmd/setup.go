@@ -61,11 +61,11 @@ func setupShell(shell string) (string, error) {
 
 func parseSetupTarget(target string) (string, bool, error) {
 	fields := strings.Fields(target)
-	if len(fields) == 0 || fields[0] != "--pd-setup" {
+	if len(fields) == 0 || fields[0] != "--pd-setup-shell" {
 		return "", false, nil
 	}
 	if len(fields) > 2 {
-		return "", true, fmt.Errorf("usage: pd --pd-setup [zsh|bash]")
+		return "", true, fmt.Errorf("usage: pd --pd-setup-shell [zsh|bash]")
 	}
 	if len(fields) == 2 {
 		return fields[1], true, nil

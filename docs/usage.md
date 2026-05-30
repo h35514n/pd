@@ -45,15 +45,15 @@ Automated shell setup
 Run:
 
 ``` sh
-pd --pd-setup
+pd --pd-setup-shell
 ```
 
 The setup command detects zsh or bash from `$SHELL`. You can override
 detection:
 
 ``` sh
-pd --pd-setup zsh
-pd --pd-setup bash
+pd --pd-setup-shell zsh
+pd --pd-setup-shell bash
 ```
 
 The command writes a managed block between these markers:
@@ -68,7 +68,7 @@ Restart your shell, or source the file named by the setup command.
 
 ### Zsh setup block
 
-`pd --pd-setup zsh` writes this block to `~/.zshrc`:
+`pd --pd-setup-shell zsh` writes this block to `~/.zshrc`:
 
 ``` sh
 # >>> pd setup >>>
@@ -110,7 +110,7 @@ logs ordinary directory changes through `chpwd`.
 
 ### Bash setup block
 
-`pd --pd-setup bash` writes this block to `~/.bashrc`:
+`pd --pd-setup-shell bash` writes this block to `~/.bashrc`:
 
 ``` sh
 # >>> pd setup >>>
@@ -189,6 +189,28 @@ zle -N pd-switch
 bindkey '^h' pd-switch
 ```
 
+Automated refresh setup
+-----------------------
+
+Run:
+
+``` sh
+pd --pd-setup-refresh
+```
+
+On macOS this writes a launchd plist to
+`~/Library/LaunchAgents/com.local.pd-refresh.plist` and registers it with
+`launchctl`. On other platforms it adds an entry to your crontab.
+
+Both run `pd --pd-refresh` every 15 minutes. Re-running the command replaces
+the existing schedule rather than adding a duplicate.
+
+To stop and unregister the launchd agent on macOS:
+
+``` sh
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.local.pd-refresh.plist
+```
+
 Project discovery
 -----------------
 
@@ -256,7 +278,8 @@ Periodic refresh
 ----------------
 
 Running `pd --pd-refresh` periodically keeps the directory list current
-as projects are created or cloned.
+as projects are created or cloned. Use `pd --pd-setup-refresh` to install
+a schedule automatically, or set one up manually as shown below.
 
 ### cron
 
