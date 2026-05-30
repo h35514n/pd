@@ -159,7 +159,7 @@ func RefreshLog(searchForProjects bool) {
 	entries := collectEntries(projects, logEntries)
 
 	sort.Sort(ByName(entries))
-	sort.Sort(ByCount(entries))
+	sort.Sort(ByFrecency(entries))
 
 	writeLogEntries(entries)
 }
@@ -340,15 +340,24 @@ func currentlyLoggedProjects() map[string]LogEntry {
 		name := fields[2]
 		path := fields[3]
 
+		var lastAccessed int64
+		if len(fields) >= 5 {
+			lastAccessed, _ = strconv.ParseInt(fields[4], 10, 64)
+		}
+
 		if existing, ok := entries[abspath]; ok {
 			count += existing.Count
+			if existing.LastAccessed > lastAccessed {
+				lastAccessed = existing.LastAccessed
+			}
 		}
 
 		entries[abspath] = LogEntry{
-			Count:   count,
-			AbsPath: abspath,
-			Name:    name,
-			Path:    path,
+			Count:        count,
+			AbsPath:      abspath,
+			Name:         name,
+			Path:         path,
+			LastAccessed: lastAccessed,
 		}
 	}
 
@@ -396,12 +405,13 @@ func writeLogEntries(entries []LogEntry) {
 }
 
 // LogEntry represents a single row in the pd history file: a count, abs path,
-// and human-readable project label pieces.
+// human-readable project label pieces, and last-access timestamp.
 type LogEntry struct {
-	Count   int
-	AbsPath string
-	Name    string
-	Path    string
+	Count        int
+	AbsPath      string
+	Name         string
+	Path         string
+	LastAccessed int64 // Unix timestamp; 0 = unknown
 }
 
 // LabelFormatted returns the colored label used in the FZF interface.
@@ -418,7 +428,7 @@ func (e LogEntry) Label() string {
 
 // LogLine returns the CSV representation used in the history file.
 func (e LogEntry) LogLine() string {
-	return fmt.Sprintf("%d,%s,%s,%s\n", e.Count, e.AbsPath, e.Name, e.Path)
+	return fmt.Sprintf("%d,%s,%s,%s,%d\n", e.Count, e.AbsPath, e.Name, e.Path, e.LastAccessed)
 }
 
 // WriteLogLine writes a single log line to file if the path still exists.
@@ -430,16 +440,33 @@ func (e LogEntry) WriteLogLine(file *os.File) {
 	}
 }
 
-// ByCount sorts LogEntry by descending Count, then by name (case-insensitive).
-type ByCount []LogEntry
+// frecencyScore returns a score combining visit frequency with recency decay.
+// score = count × 0.5^(elapsed_days / half_life_days)
+func frecencyScore(e LogEntry) float64 {
+	if e.Count == math.MaxInt32 {
+		return math.MaxFloat64
+	}
+	var elapsedDays float64
+	if e.LastAccessed > 0 {
+		elapsedDays = time.Since(time.Unix(e.LastAccessed, 0)).Hours() / 24
+	} else {
+		elapsedDays = 365 * 10 // treat unknown as very old
+	}
+	decay := math.Pow(0.5, elapsedDays/frecencyHalfLife)
+	return float64(e.Count) * decay
+}
 
-func (a ByCount) Len() int      { return len(a) }
-func (a ByCount) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByCount) Less(i, j int) bool {
-	if a[j].Count == a[i].Count {
+// ByFrecency sorts LogEntry by descending frecency score, then by name (case-insensitive).
+type ByFrecency []LogEntry
+
+func (a ByFrecency) Len() int      { return len(a) }
+func (a ByFrecency) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByFrecency) Less(i, j int) bool {
+	si, sj := frecencyScore(a[i]), frecencyScore(a[j])
+	if si == sj {
 		return strings.ToLower(a[i].Name) < strings.ToLower(a[j].Name)
 	}
-	return a[j].Count < a[i].Count
+	return sj < si
 }
 
 // ByName sorts LogEntry by Name (case-insensitive), then by Path.
@@ -463,10 +490,11 @@ func buildLogEntry(abspath string) LogEntry {
 	location := strings.Join(components[0:last], "/")
 
 	return LogEntry{
-		Count:   1,
-		AbsPath: abspath,
-		Name:    components[last],
-		Path:    location,
+		Count:        1,
+		AbsPath:      abspath,
+		Name:         components[last],
+		Path:         location,
+		LastAccessed: time.Now().Unix(),
 	}
 }
 
@@ -522,7 +550,7 @@ func searchListing(projectIndex map[string]LogEntry) (source.Source, map[string]
 	}
 
 	sort.Sort(ByName(logEntries))
-	sort.Sort(ByCount(logEntries))
+	sort.Sort(ByFrecency(logEntries))
 
 	listing := make([]string, 0, len(logEntries))
 	index := make(map[string]string, len(logEntries))

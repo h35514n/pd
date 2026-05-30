@@ -31,10 +31,11 @@ const (
 	configFileName = "config"
 	configFileType = "yaml"
 
-	configKeyHistoryFile    = "history_filepath"
-	configKeyDebug          = "debug"
-	configKeyExcludes       = "excludes"
-	configKeyProjectMarkers = "project_markers"
+	configKeyHistoryFile      = "history_filepath"
+	configKeyDebug            = "debug"
+	configKeyExcludes         = "excludes"
+	configKeyProjectMarkers   = "project_markers"
+	configKeyFrecencyHalfLife = "frecency_half_life"
 )
 
 var (
@@ -43,6 +44,7 @@ var (
 	excludeBasenamePatterns []string
 	projectMarkers          []string
 	debug                   bool
+	frecencyHalfLife        float64
 
 	dirStackPattern = regexp.MustCompile(`\A[-+][0-9]*\z`)
 )
@@ -212,6 +214,7 @@ func initConfig() {
 	viper.SetDefault(configKeyHistoryFile, filepath.Join(statePath, defaultHistoryFilename))
 	viper.SetDefault(configKeyDebug, false)
 	viper.SetDefault(configKeyProjectMarkers, defaultProjectMarkers)
+	viper.SetDefault(configKeyFrecencyHalfLife, 30.0)
 
 	// Config file
 	viper.AddConfigPath(cfgDir)
@@ -224,6 +227,7 @@ func initConfig() {
 	// Effective configuration
 	debug = viper.GetBool(configKeyDebug)
 	historyFile = expandPath(viper.GetString(configKeyHistoryFile))
+	frecencyHalfLife = viper.GetFloat64(configKeyFrecencyHalfLife)
 	excludePathPatterns, excludeBasenamePatterns = classifyExcludes(
 		mergeExcludes(viper.GetStringSlice(configKeyExcludes)),
 	)
