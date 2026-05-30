@@ -1,14 +1,24 @@
 p/d
 ===
 
-A project / directory manager and
-[FZF](https://github.com/junegunn/fzf)-powered fuzzy-selector.
+`pd` is a frecency-ranked project switcher for the terminal. It tracks every
+directory you `cd` into, auto-discovers projects under `$HOME`, and presents
+the whole list in an FZF fuzzy-finder you can invoke without leaving your
+current shell.
 
-Use `pd` in tandem with `cd` to change directories using fuzzy-search,
-search for projects in your home directory, and keep track of your
-most-visited `cd` targets.
+Directories you visit rise to the top of the list via frecency ranking (visit
+frequency × recency decay). The list is seeded by auto-discovery of projects
+under `$HOME` and grows passively as you work through a lightweight shell hook.
+The picker shows a rich preview for each entry: rendered README when available
+in any of seven formats, directory tree or file listing otherwise. A fallback
+home-directory search is a keypress away
+inside the picker.
 
-It's written in [Go](https://golang.org/doc), and it *zooms*.
+Project discovery, exclusion rules, and frecency tuning are
+[configurable](docs/usage.md#project-discovery). Config and state paths conform
+to the XDG Base Directory Specification. Supports scheduled background refreshes
+via cron or launchd — see [docs/usage.md](docs/usage.md) for setup details and
+fallback shell integration options.
 
 [![demo](./docs/assets/demo.gif)](https://asciinema.org/a/330647)
 
@@ -27,13 +37,6 @@ Install the recommended shell integration:
 pd --pd-setup
 ```
 
-`pd --pd-setup` detects zsh or bash from `$SHELL`, writes a managed
-block to your shell rc file, and installs:
-
-- a key binding for fuzzy selection: <kbd>Ctrl</kbd>+<kbd>h</kbd>
-- a directory-change hook so ordinary `cd`, `pushd`, and `popd` targets
-  are logged and ranked
-
 Restart your shell, or source the file named by the setup command.
 
 Usage and setup
@@ -47,13 +50,3 @@ License
 -------
 
 Apache
-
-Acknowledgements
-----------------
-
-p/d is written in [Go](https://golang.org/doc) based on a prototype in
-[Ruby](https://ruby-doc.org/). It builds upon prior art by
-[junegunn](https://github.com/junegunn)
-([fzf](https://github.com/junegunn/fzf)) and
-[b4b4r07](https://github.com/b4b4r07)
-([go-finder](https://github.com/b4b4r07/go-finder)).
