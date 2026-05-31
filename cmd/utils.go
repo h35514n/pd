@@ -308,10 +308,12 @@ func mergeExcludes(user []string) []string {
 	return merged
 }
 
-// classifyExcludes splits exclude entries into path patterns and basename
-// patterns. Entries containing '/' are paths (with ~/ expansion); others are
-// basename globs. Invalid patterns are dropped with a stderr warning.
-func classifyExcludes(entries []string) (paths, basenames []string) {
+// classifyExcludes splits exclude entries into four pre-classified buckets so
+// hot-path checks avoid re-evaluating glob detection per directory visited.
+// Entries containing '/' are paths (with ~/ expansion); others are basenames.
+// Each group is further split into exact (no glob chars) and glob variants.
+func classifyExcludes(entries []string) (pathPrefixes, pathGlobs []string, basenameExact map[string]bool, basenameGlobs []string) {
+	basenameExact = make(map[string]bool)
 	for _, entry := range entries {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
@@ -329,12 +331,21 @@ func classifyExcludes(entries []string) (paths, basenames []string) {
 					"Warning: could not expand excludes entry %q: %v\n", entry, err)
 				continue
 			}
-			paths = append(paths, filepath.Clean(expanded))
+			cleaned := filepath.Clean(expanded)
+			if containsGlobChars(cleaned) {
+				pathGlobs = append(pathGlobs, cleaned)
+			} else {
+				pathPrefixes = append(pathPrefixes, cleaned)
+			}
 			continue
 		}
-		basenames = append(basenames, entry)
+		if containsGlobChars(entry) {
+			basenameGlobs = append(basenameGlobs, entry)
+		} else {
+			basenameExact[entry] = true
+		}
 	}
-	return paths, basenames
+	return pathPrefixes, pathGlobs, basenameExact, basenameGlobs
 }
 
 // containsGlobChars reports whether s has any filepath.Match metacharacter.
@@ -342,34 +353,31 @@ func containsGlobChars(s string) bool {
 	return strings.ContainsAny(s, "*?[")
 }
 
-// isExcludedPath reports whether path matches an excludePathPatterns entry.
+// isExcludedPath reports whether path is matched by any exclude path entry.
 // Non-glob entries match the path itself and all descendants; glob entries
 // use filepath.Match against the full path.
 func isExcludedPath(path string) bool {
 	path = filepath.Clean(path)
-	for _, pattern := range excludePathPatterns {
-		if containsGlobChars(pattern) {
-			if ok, _ := filepath.Match(pattern, path); ok {
-				return true
-			}
-			continue
-		}
-		if path == pattern {
+	sep := string(filepath.Separator)
+	for _, prefix := range excludePathPrefixes {
+		if path == prefix || strings.HasPrefix(path, prefix+sep) {
 			return true
 		}
-		rel, err := filepath.Rel(pattern, path)
-		if err == nil && rel != "." && rel != ".." &&
-			!strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+	}
+	for _, pattern := range excludePathGlobs {
+		if ok, _ := filepath.Match(pattern, path); ok {
 			return true
 		}
 	}
 	return false
 }
 
-// isExcludedBasename reports whether name matches any pattern in
-// excludeBasenamePatterns via filepath.Match.
+// isExcludedBasename reports whether name matches any exclude basename entry.
 func isExcludedBasename(name string) bool {
-	for _, pattern := range excludeBasenamePatterns {
+	if excludeBasenameExact[name] {
+		return true
+	}
+	for _, pattern := range excludeBasenameGlobs {
 		if ok, _ := filepath.Match(pattern, name); ok {
 			return true
 		}

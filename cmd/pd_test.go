@@ -68,7 +68,7 @@ func TestCollectUserProjectsSkipsDefaultSystemDirs(t *testing.T) {
 	mkdirAll(t, filepath.Join(libraryProject, ".git"))
 	mkdirAll(t, filepath.Join(cacheProject, ".git"))
 
-	excludePathPatterns, excludeBasenamePatterns = classifyExcludes(defaultExcludes)
+	excludePathPrefixes, excludePathGlobs, excludeBasenameExact, excludeBasenameGlobs = classifyExcludes(defaultExcludes)
 
 	projects := collectUserProjects()
 	if len(projects) != 0 {
@@ -84,7 +84,7 @@ func TestCollectUserProjectsMergesDefaultAndUserSkipDirs(t *testing.T) {
 	mkdirAll(t, filepath.Join(trash, "lib"))
 	mkdirAll(t, filepath.Join(userSkipped, ".git"))
 
-	excludePathPatterns, excludeBasenamePatterns = classifyExcludes(mergeExcludes([]string{userSkipped}))
+	excludePathPrefixes, excludePathGlobs, excludeBasenameExact, excludeBasenameGlobs = classifyExcludes(mergeExcludes([]string{userSkipped}))
 
 	projects := collectUserProjects()
 	if len(projects) != 0 {
@@ -103,7 +103,7 @@ func TestCollectUserProjectsRespectsSkipDirsForSubmodules(t *testing.T) {
 	writeFile(t, filepath.Join(submodule, ".git"), "gitdir: ../../.git/modules/one\n")
 	writeFile(t, filepath.Join(repo, ".gitmodules"), "[submodule \"one\"]\n\tpath = modules/one\n")
 
-	excludePathPatterns, excludeBasenamePatterns = classifyExcludes([]string{filepath.Join(repo, "modules") + string(os.PathSeparator)})
+	excludePathPrefixes, excludePathGlobs, excludeBasenameExact, excludeBasenameGlobs = classifyExcludes([]string{filepath.Join(repo, "modules") + string(os.PathSeparator)})
 
 	projects := collectUserProjects()
 	if !equalStrings(projects, []string{repo}) {
@@ -117,7 +117,7 @@ func TestCollectUserProjectsRespectsTrailingSlashSkipDirs(t *testing.T) {
 	libraryProject := filepath.Join(home, "Library", "Caches", "repo")
 	mkdirAll(t, filepath.Join(libraryProject, ".git"))
 
-	excludePathPatterns, excludeBasenamePatterns = classifyExcludes([]string{filepath.Join(home, "Library") + string(os.PathSeparator)})
+	excludePathPrefixes, excludePathGlobs, excludeBasenameExact, excludeBasenameGlobs = classifyExcludes([]string{filepath.Join(home, "Library") + string(os.PathSeparator)})
 
 	projects := collectUserProjects()
 	if len(projects) != 0 {
@@ -179,17 +179,23 @@ func configureProjectCollectionTest(t *testing.T) string {
 
 	oldDisableCache := homedir.DisableCache
 	homedir.DisableCache = true
-	oldExcludePathPatterns := excludePathPatterns
-	oldExcludeBasenamePatterns := excludeBasenamePatterns
+	oldExcludePathPrefixes := excludePathPrefixes
+	oldExcludePathGlobs := excludePathGlobs
+	oldExcludeBasenameExact := excludeBasenameExact
+	oldExcludeBasenameGlobs := excludeBasenameGlobs
 	oldProjectMarkers := projectMarkers
-	excludePathPatterns = nil
-	excludeBasenamePatterns = nil
+	excludePathPrefixes = nil
+	excludePathGlobs = nil
+	excludeBasenameExact = nil
+	excludeBasenameGlobs = nil
 	projectMarkers = nil
 
 	t.Cleanup(func() {
 		homedir.DisableCache = oldDisableCache
-		excludePathPatterns = oldExcludePathPatterns
-		excludeBasenamePatterns = oldExcludeBasenamePatterns
+		excludePathPrefixes = oldExcludePathPrefixes
+		excludePathGlobs = oldExcludePathGlobs
+		excludeBasenameExact = oldExcludeBasenameExact
+		excludeBasenameGlobs = oldExcludeBasenameGlobs
 		projectMarkers = oldProjectMarkers
 	})
 

@@ -39,12 +39,14 @@ const (
 )
 
 var (
-	historyFile             string
-	excludePathPatterns     []string
-	excludeBasenamePatterns []string
-	projectMarkers          []string
-	debug                   bool
-	frecencyHalfLife        float64
+	historyFile          string
+	excludePathPrefixes  []string        // non-glob path patterns (exact + descendant)
+	excludePathGlobs     []string        // glob path patterns
+	excludeBasenameExact map[string]bool // non-glob basename patterns
+	excludeBasenameGlobs []string        // glob basename patterns
+	projectMarkers       []string
+	debug                bool
+	frecencyHalfLife     float64
 
 	dirStackPattern = regexp.MustCompile(`\A[-+][0-9]*\z`)
 )
@@ -237,7 +239,7 @@ func initConfig() {
 	debug = viper.GetBool(configKeyDebug)
 	historyFile = expandPath(viper.GetString(configKeyHistoryFile))
 	frecencyHalfLife = viper.GetFloat64(configKeyFrecencyHalfLife)
-	excludePathPatterns, excludeBasenamePatterns = classifyExcludes(
+	excludePathPrefixes, excludePathGlobs, excludeBasenameExact, excludeBasenameGlobs = classifyExcludes(
 		mergeExcludes(viper.GetStringSlice(configKeyExcludes)),
 	)
 	projectMarkers = cleanProjectMarkers(viper.GetStringSlice(configKeyProjectMarkers))
